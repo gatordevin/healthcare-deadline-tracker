@@ -32,6 +32,7 @@ export async function POST(req: Request) {
         const session = event.data.object as Stripe.Checkout.Session;
         const clerkUserId = session.metadata?.clerkUserId;
         const customerId = session.customer as string;
+        const plan = session.metadata?.plan || 'basic';
 
         if (clerkUserId) {
           const client = await clerkClient();
@@ -39,6 +40,7 @@ export async function POST(req: Request) {
             publicMetadata: {
               stripeCustomerId: customerId,
               subscriptionStatus: 'active',
+              subscriptionPlan: plan,
             },
           });
         }
@@ -48,6 +50,7 @@ export async function POST(req: Request) {
       case 'customer.subscription.updated': {
         const subscription = event.data.object as Stripe.Subscription;
         const clerkUserId = subscription.metadata?.clerkUserId;
+        const plan = subscription.metadata?.plan || 'basic';
 
         if (clerkUserId) {
           const client = await clerkClient();
@@ -55,6 +58,7 @@ export async function POST(req: Request) {
             publicMetadata: {
               subscriptionStatus: subscription.status,
               subscriptionId: subscription.id,
+              subscriptionPlan: plan,
             },
           });
         }
@@ -78,8 +82,11 @@ export async function POST(req: Request) {
       }
 
       case 'invoice.payment_succeeded': {
-        const invoice = event.data.object as Stripe.Invoice;
-        const subscriptionId = invoice.subscription as string;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const invoice = event.data.object as any;
+        const subscriptionId = typeof invoice.subscription === 'string'
+          ? invoice.subscription
+          : invoice.subscription?.id;
 
         if (subscriptionId) {
           const subscription = await stripe.subscriptions.retrieve(subscriptionId);
@@ -98,8 +105,11 @@ export async function POST(req: Request) {
       }
 
       case 'invoice.payment_failed': {
-        const invoice = event.data.object as Stripe.Invoice;
-        const subscriptionId = invoice.subscription as string;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const invoice = event.data.object as any;
+        const subscriptionId = typeof invoice.subscription === 'string'
+          ? invoice.subscription
+          : invoice.subscription?.id;
 
         if (subscriptionId) {
           const subscription = await stripe.subscriptions.retrieve(subscriptionId);
