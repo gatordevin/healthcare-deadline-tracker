@@ -5,6 +5,7 @@ const isProtectedRoute = createRouteMatcher([
   "/dashboard(.*)",
   "/api/user(.*)",
   "/api/subscription(.*)",
+  "/api/checkout(.*)",
 ]);
 
 // Define public routes - these are accessible without authentication
