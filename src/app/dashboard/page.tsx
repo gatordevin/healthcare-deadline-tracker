@@ -1,5 +1,6 @@
 'use client';
 
+import { useUser } from "@clerk/nextjs";
 import { useState, useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { Deadline, DeadlineCategory } from '@/types';
@@ -8,7 +9,7 @@ import FilterBar from '@/components/FilterBar';
 import UpcomingDeadlines from '@/components/UpcomingDeadlines';
 import StateLicensingPanel from '@/components/StateLicensingPanel';
 import DeadlineModal from '@/components/DeadlineModal';
-import { RefreshCw, Shield, Calendar, AlertCircle } from 'lucide-react';
+import { RefreshCw, Shield, Calendar, AlertCircle, Crown } from 'lucide-react';
 
 // Dynamic import for FullCalendar to avoid SSR issues
 const DeadlineCalendar = dynamic(() => import('@/components/DeadlineCalendar'), {
@@ -20,12 +21,14 @@ const DeadlineCalendar = dynamic(() => import('@/components/DeadlineCalendar'), 
   ),
 });
 
-export default function Home() {
+export default function Dashboard() {
+  const { user, isLoaded } = useUser();
   const [deadlines, setDeadlines] = useState<Deadline[]>([]);
   const [filteredDeadlines, setFilteredDeadlines] = useState<Deadline[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+  const [isPro, setIsPro] = useState(false);
 
   // Filter state
   const [selectedCategories, setSelectedCategories] = useState<DeadlineCategory[]>([]);
@@ -38,6 +41,15 @@ export default function Home() {
 
   // View state
   const [view, setView] = useState<'calendar' | 'list' | 'states'>('calendar');
+
+  // Check subscription status
+  useEffect(() => {
+    if (user) {
+      // Check user metadata for subscription status
+      const subscriptionStatus = user.publicMetadata?.subscriptionStatus as string;
+      setIsPro(subscriptionStatus === 'active');
+    }
+  }, [user]);
 
   const fetchDeadlines = useCallback(async () => {
     setLoading(true);
@@ -76,6 +88,14 @@ export default function Home() {
     setFilteredDeadlines(filtered);
   }, [deadlines, selectedCategories, selectedStates, searchQuery, showPassed]);
 
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <RefreshCw className="w-8 h-8 text-blue-600 animate-spin" />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -86,14 +106,29 @@ export default function Home() {
               <Shield className="w-8 h-8 text-blue-600" />
               <div>
                 <h1 className="text-xl font-bold text-gray-900">
-                  Healthcare Compliance Tracker
+                  Healthcare Compliance Dashboard
                 </h1>
                 <p className="text-sm text-gray-500">
-                  Regulatory deadlines for healthcare practices
+                  Welcome back, {user?.firstName || 'User'}!
+                  {isPro && (
+                    <span className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded-full text-xs">
+                      <Crown className="w-3 h-3" />
+                      Pro
+                    </span>
+                  )}
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-4">
+              {!isPro && (
+                <a
+                  href="/api/checkout"
+                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-yellow-400 to-yellow-500 text-gray-900 rounded-lg hover:from-yellow-500 hover:to-yellow-600 font-medium transition-all"
+                >
+                  <Crown className="w-4 h-4" />
+                  Upgrade to Pro
+                </a>
+              )}
               {lastUpdated && (
                 <span className="text-xs text-gray-500">
                   Updated: {new Date(lastUpdated).toLocaleString()}
